@@ -1,0 +1,40 @@
+# Machine A (LAN_IP in .env) — the app itself. Postgres and Ollama already run
+# on this host outside this project; RabbitMQ runs on machine B (see
+# deploy/rabbitmq/docker-compose.yml); nginx on B terminates TLS and proxies
+# to `api` over the LAN.
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env
+  environment:
+    # Postgres (5433) and Ollama (11434) listen on this host, not on this
+    # project's network, so 127.0.0.1 from a container would be the container.
+    PGVECTOR_HOST: host.docker.internal
+    AI_API: http://host.docker.internal:11434
+    MEDIA_ROOT: /data/media
+    # RABBITMQ_URL comes from .env and must point at machine B's LAN address.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    # The API writes image downloads here and the worker reads them back when
+    # building the vision payload — they must share the same storage.
+    - media:/data/media
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      # Bound to the LAN address so nginx on machine B can reach it, and
+      # nothing else can.
+      - "${LAN_IP:-127.0.0.1}:8000:8000"
+
+  issue-worker:
+    <<: *app
+    command: ["python", "-m", "app.workers.issue_worker"]
+
+volumes:
+  media:

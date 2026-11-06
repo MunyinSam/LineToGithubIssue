@@ -1,0 +1,11 @@
+pika
+line-bot-sdk
+fastapi
+uvicorn[standard]
+aiohttp
+pydantic-settings
+python-dotenv
+psycopg[binary,pool]
+fastapi
+uvicorn[standard]
+aiohttp

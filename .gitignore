@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.venv
+*__pycache__
+data/
+# local tooling / personal notes
+.claude/settings.local.json
+.claude/settings.json
+.DS_Store
+.docs/Drawing 2026-07-27 11.32.35.png

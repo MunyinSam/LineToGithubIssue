@@ -1,0 +1,45 @@
+# RabbitMQ for the LINE -> issue pipeline.
+#
+# Deploy this on machine B, alongside nginx. The API and the
+# issue-worker both run on machine A and connect across the LAN.
+#
+#   scp docker-compose.yml <user>@<machine-b>:~/linelog-rabbit/
+#   ssh <user>@<machine-b>
+#   cd ~/linelog-rabbit
+#   # create .env next to this file with:
+#   #   RABBITMQ_PASS=<strong password>
+#   #   LAN_IP=<machine B's LAN address>
+#   docker compose up -d
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: linelog-rabbit
+    # Pinned: RabbitMQ stores its data under a directory named after the host,
+    # so a changing hostname would orphan the volume on every recreate.
+    hostname: linelog-rabbit
+    environment:
+      RABBITMQ_DEFAULT_USER: linelog
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?set RABBITMQ_PASS in .env}
+      # Not the `guest` account: RabbitMQ refuses guest on any non-loopback
+      # connection, and machine A is very much not loopback.
+    ports:
+      # AMQP on the LAN address only, so machine A can reach it and the public
+      # internet cannot. Do NOT add a router port-forward for 5672.
+      - "${LAN_IP:?set LAN_IP in .env}:5672:5672"
+      # Management UI on loopback only. Reach it through an SSH tunnel:
+      #   ssh -L 15672:127.0.0.1:15672 <user>@<machine-b>
+      # then open http://localhost:15672
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
