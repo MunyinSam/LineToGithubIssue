@@ -9,3 +9,6 @@ data/
 .claude/settings.json
 .DS_Store
 .docs/Drawing 2026-07-27 11.32.35.png
+
+# machine-specific compose (single-machine Mac Mini setup)
+docker-compose.override.yml
